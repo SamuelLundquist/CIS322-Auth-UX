@@ -4,25 +4,151 @@ Replacement for RUSA ACP brevet time calculator
 (see https://rusa.org/octime_acp.html)
 
 """
-from flask import request, redirect, url_for, render_template, Flask, jsonify, session
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, BooleanField, SubmitField
+from wtforms.validators import DataRequired
+from urllib.parse import urlparse, urljoin
+from flask import request, redirect, url_for, render_template, Flask, jsonify, session, flash
 from flask_restful import Resource, Api
+from flask_login import (LoginManager, current_user, login_required,
+                            login_user, logout_user, UserMixin,
+                            confirm_login, fresh_login_required)
+
+from itsdangerous import (TimedJSONWebSignatureSerializer \
+                                  as Serializer, BadSignature, \
+                                  SignatureExpired)
+
+from passlib.apps import custom_app_context as pwd_context
 from pymongo import MongoClient
 import arrow  # Replacement for datetime, based on moment.js
 import acp_times  # Brevet time calculations
 import logging
+import time
 import os
+
+###
+# Classes and Functions
+###
+class User(UserMixin):
+    def __init__(self, name, id, active=True):
+        self.name = name
+        self.id = id
+        self.active = active
+
+    def is_active(self):
+        return self.active
+
+class LoginForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired()])
+    password = PasswordField('Password', validators=[DataRequired()])
+    remember_me = BooleanField('Remember Me')
+    submit = SubmitField('Sign In')
+
+def hash_password(password):
+    return pwd_context.encrypt(password)
+
+def verify_password(password, hashVal):
+    return pwd_context.verify(password, hashVal)
+
+def generate_auth_token(expiration=600):
+   # s = Serializer(app.config['SECRET_KEY'], expires_in=expiration)
+   s = Serializer('test1234@#$', expires_in=expiration)
+   # pass index of user
+   return s.dumps({'id': 1})
+
+def verify_auth_token(token):
+    s = Serializer('test1234@#$')
+    try:
+        data = s.loads(token)
+    except SignatureExpired:
+        return None    # valid token, but expired
+    except BadSignature:
+        return None    # invalid token
+    return "Success"
+
+def is_safe_url(target):
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ('http', 'https') and \
+           ref_url.netloc == test_url.netloc
 
 ###
 # Globals
 ###
 app = Flask(__name__)
+app.config['SECRET_KEY'] = "shhhhh it is a secret"
 api = Api(app)
-client = MongoClient("172.18.0.2", 27017)
+client = MongoClient("172.21.0.2", 27017)
 db = client.brevetsdb
+dbu = client.usersdb
+
+login_manager = LoginManager()
+login_manager.setup_app(app)
+
+login_manager.login_view = "login"
+login_manager.login_message = u"Please log in to access this page."
+login_manager.refresh_view = "reauth"
+
+USERS = {
+    1: User(u"A", 1),
+    2: User(u"B", 2),
+}
+USER_NAMES = dict((u.name, u) for u in USERS.values())
+
+@login_manager.user_loader
+def load_user(id):
+    return USERS.get(int(id))
+'''
+@login_manager.user_loader
+def load_user(id):
+    return db.userdb.find({"id" : id })
+'''
 
 ###
 # Pages
 ###
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+
+        username = form.username.data
+        remember = form.remember_me.data
+
+        if username in USER_NAMES:
+
+            if login_user(USER_NAMES[username], remember=remember):
+
+                flash("Logged in!")
+                next = request.args.get('next')
+
+                if not is_safe_url(next):
+                    return flask.abort(400)
+                return redirect(request.args.get("next") or url_for("index"))
+            else:
+                flash("Sorry, but you could not log in.")
+        else:
+            flash(u"Invalid username.")
+    return render_template('login.html',  title='Sign In', form=form)
+
+@app.route("/reauth", methods=["GET", "POST"])
+@login_required
+def reauth():
+    if request.method == "POST":
+        confirm_login()
+        flash(u"Reauthenticated.")
+        if not is_safe_url(next):
+            return flask.abort(400)
+        return redirect(request.args.get("next") or url_for("index"))
+    return render_template("reauth.html")
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    flash("Logged out.")
+    return redirect(url_for("index"))
+
 @app.route("/")
 @app.route("/index")
 def index():
@@ -39,6 +165,7 @@ def found(filepath):
         return render_template('404.html'), 404
 
 @app.route("/display")
+@login_required
 def display():
     app.logger.debug("Display page entry")
     _times = db.brevetsdb.find().sort( "dist", 1)

@@ -1,6 +1,16 @@
 flask-restful==0.3.5
+flask-login
 flask
 pymongo
 arrow
 pep8
 autopep8
+itsdangerous==0.24
+click==6.7
+Flask-HTTPAuth==3.2.3
+Flask-SQLAlchemy==2.2
+Flask-WTF
+WTForms
+MarkupSafe==1.0
+passlib==1.7.1
+SQLAlchemy==1.1.11

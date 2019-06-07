@@ -18,7 +18,7 @@
    </script>
 
   <!-- moment.js is the JavaScript equivalent of arrow.py -->
-  <script 
+  <script
     src="{{ url_for('static', filename="js/moment.min.js") }}"></script>
 
 </head>
@@ -35,11 +35,15 @@
 
   <!--
   -- If there are any warnings or other messages from a prior
-  -- request to the server, 
-  -- they appear above the rest of the content, just until the next 
+  -- request to the server,
+  -- they appear above the rest of the content, just until the next
   -- action.  (This is only on request/response transactions that
-  -- result in regenerating the page, not on every xmlhttp request.) 
+  -- result in regenerating the page, not on every xmlhttp request.)
   -->
+
+{% if current_user.is_authenticated %}
+    Hi {{ current_user.name }}!
+{% endif %}
 
 {% with messages = get_flashed_messages() %}
   {% if messages %}
@@ -77,7 +81,7 @@
        one.  We allocate it the full 12 columns of the bootstrap grid.
   -->
   <div class="row">
-  <div class="col-md-12"> 
+  <div class="col-md-12">
   <table class="control_time_table" id="table">
       <tr>
 	<th> Miles </th>
@@ -89,13 +93,13 @@
    {% for row in range(20) %}
     <tr class="control">
       <!-- Dist (mi) -->
-      <td><input name="miles" type="number" 
+      <td><input name="miles" type="number"
            min="0" max="900" size="5" /></td>
       <!-- Dist (km) -->
       <td><input name="km" type="number"
 	   min="0" max="1100" size="5" /> </td>
       <!-- Location (optional) -->
-      <td><input name="location" type="text" 
+      <td><input name="location" type="text"
         placeholder="Optional location name"
 	size="20" /> </td>
       <!-- Open time (read only, set by JavaScript function -->
@@ -125,15 +129,15 @@
   // It extracts the distance and calls the server to get times to
   // fill in open and close times in a human-readable format.
   // (If we want to also keep the ISO-formatted times, we'll need to
-  // stash them in hidden fields.) 
+  // stash them in hidden fields.)
   function calc_times(control) {
     var km = control.find("input[name='km']").val();
     var dt = $("#begin_date").val() + 'T' +  $("#begin_time").val();
     var bv = $("#brevet_dist_km").val();
     var open_time_field = control.find("input[name='open']");
     var close_time_field = control.find("input[name='close']");
-    
-    $.getJSON(TIME_CALC_URL, { km: km, dt: dt, bv: bv }, 
+
+    $.getJSON(TIME_CALC_URL, { km: km, dt: dt, bv: bv },
       // response handler
       function(data) {
         var times = data.result;
@@ -148,7 +152,7 @@
   function submit() {
     var tableData = new Array();
     var i = 0;
-    $('#table tr').each(function(row, tr){  
+    $('#table tr').each(function(row, tr){
       if($(tr).find('td').eq(1).find('input').val() != "" && $(tr).find('td').eq(3).find('input').val() != "Invalid date"){
         tableData[i] ={
           "d": $(tr).find('td').eq(1).find('input').val(),
