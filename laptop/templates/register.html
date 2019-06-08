@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>Sign In</h1>
+    <h1>Register</h1>
     <form action="" method="post" novalidate>
         {{ form.hidden_tag() }}
         <p>
@@ -18,11 +18,17 @@
             <span style="color: red;">[{{ error }}]</span>
             {% endfor %}
         </p>
-        <p id='remBox'>{{ form.remember_me() }} Remember Me</p>
+        <p>
+            {{ form.vpassword.label }}<br>
+            {{ form.vpassword(size=32) }}<br>
+            {% for error in form.vpassword.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}
+        </p>
         <p>{{ form.submit() }}</p>
     </form>
-    <p>Don't have an account?
-        <a href="{{ url_for('register') }}">Register</a>
+    <p>Already have an account?
+        <a href="{{ url_for('login') }}">Login</a>
     </p>
     {% with messages = get_flashed_messages() %}
     {% if messages %}

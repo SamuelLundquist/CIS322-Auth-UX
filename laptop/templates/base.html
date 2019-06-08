@@ -5,23 +5,17 @@
         {% else %}
         <title>Welcome to Microblog</title>
         {% endif %}
+         <link rel="stylesheet" href="/static/css/base.css"/>
     </head>
     <body>
-        <div>
+        <div id='navBar'>
             Microblog:
-            <a href="{{ url_for('index') }}">Home</a>
-            <a href="{{ url_for('login') }}">Login</a>
+            <a class='navlink' href="{{ url_for('index') }}">Home</a>
+            <a class='navlink' href="{{ url_for('login') }}">Login</a>
         </div>
-        <hr>
-        {% with messages = get_flashed_messages() %}
-        {% if messages %}
-        <ul>
-            {% for message in messages %}
-            <li>{{ message }}</li>
-            {% endfor %}
-        </ul>
-        {% endif %}
-        {% endwith %}
+        
+        <div id = blockContent>
         {% block content %}{% endblock %}
+    </div>
     </body>
 </html>

@@ -1,0 +1,63 @@
+html
+{
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+body
+{
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    background-color: rgb(50,50,50);
+}
+
+p
+{
+    width: 100%;
+}
+
+input
+{
+    width: 90%;
+    height:30px;
+}
+
+#remBox input
+{
+    width: 20px;
+    height: 20px;
+}
+
+#navBar
+{
+    width: 100%;
+    height: auto;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    background-color: white;
+    font-size: 24px;
+}
+
+.navlink
+{
+    margin-left: 30px;
+    padding-top: 10px;
+}
+
+#blockContent
+{
+    width: 400px;
+    margin: 20px auto;
+    height: auto;
+    padding: 10px;
+    vertical-align: middle;
+    text-align: center;
+    border: none;
+    border-radius: 5px;
+    background-color: white;
+
+}

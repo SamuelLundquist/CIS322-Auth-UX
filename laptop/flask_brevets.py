@@ -44,10 +44,18 @@ class LoginForm(FlaskForm):
     remember_me = BooleanField('Remember Me')
     submit = SubmitField('Sign In')
 
+class RegisterForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired()])
+    password = PasswordField('Password', validators=[DataRequired()])
+    vpassword = PasswordField('VerifyPassword', validators=[DataRequired()])
+    submit = SubmitField('Register')
+
 def hash_password(password):
     return pwd_context.encrypt(password)
 
 def verify_password(password, hashVal):
+    app.logger.info(password)
+    app.logger.info(hashVal)
     return pwd_context.verify(password, hashVal)
 
 def generate_auth_token(expiration=600):
@@ -81,28 +89,20 @@ api = Api(app)
 client = MongoClient("172.21.0.2", 27017)
 db = client.brevetsdb
 dbu = client.usersdb
+indexVal = 0
 
 login_manager = LoginManager()
 login_manager.setup_app(app)
-
 login_manager.login_view = "login"
 login_manager.login_message = u"Please log in to access this page."
 login_manager.refresh_view = "reauth"
 
-USERS = {
-    1: User(u"A", 1),
-    2: User(u"B", 2),
-}
-USER_NAMES = dict((u.name, u) for u in USERS.values())
-
 @login_manager.user_loader
-def load_user(id):
-    return USERS.get(int(id))
-'''
-@login_manager.user_loader
-def load_user(id):
-    return db.userdb.find({"id" : id })
-'''
+def load_user(name):
+    u = dbu.usersdb.find_one({"name": name})
+    if not u:
+        return None
+    return User(u['name'], u['id'])
 
 ###
 # Pages
@@ -110,26 +110,67 @@ def load_user(id):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     form = LoginForm()
-    if form.validate_on_submit():
+    if request.method == 'POST' and form.validate_on_submit():
 
         username = form.username.data
         remember = form.remember_me.data
+        user = dbu.usersdb.find_one({"name": username})
 
-        if username in USER_NAMES:
+        ### Test Print Statement ###
+        _users = dbu.usersdb.find()
+        times = [time for time in _users]
+        for time in times:
+            flash(time)
+        nUser = User(user["name"], user["id"])
+        flash(nUser)
+        ###
+        app.logger.info(nUser.is_authenticated)
+        verify_password(form.password.data, user['hash'])
 
-            if login_user(USER_NAMES[username], remember=remember):
-
-                flash("Logged in!")
+        if user and verify_password(form.password.data, user['hash']):
+            newUser = User(user["name"], user["id"])
+            if login_user(newUser):
+                app.logger.info(newUser.name + "VERIFY")
                 next = request.args.get('next')
-
+                app.logger.info(url_for("index"))
+                app.logger.info(next)
                 if not is_safe_url(next):
                     return flask.abort(400)
+                app.logger.info("IS SAFE VERIFIED")
                 return redirect(request.args.get("next") or url_for("index"))
             else:
                 flash("Sorry, but you could not log in.")
         else:
-            flash(u"Invalid username.")
+            flash(u"Invalid username or password.")
+
     return render_template('login.html',  title='Sign In', form=form)
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    dbu.usersdb.remove({})
+    form = RegisterForm()
+    if form.validate_on_submit():
+        username = form.username.data
+        passw = form.password.data
+        vpassw = form.vpassword.data
+        if not dbu.usersdb.find_one({"name": username}):
+
+            if passw == vpassw:
+                global indexVal
+                indexVal += 1
+                p = hash_password(passw)
+                user = {
+                    "id": indexVal,
+                    "name": username,
+                    "hash": p
+                }
+                dbu.usersdb.insert(user)
+                return redirect(url_for("index"))
+            else:
+                flash(u"Passwords do not match.")
+        else:
+            flash(u"Username already taken")
+    return render_template('register.html',  title='Register', form=form)
 
 @app.route("/reauth", methods=["GET", "POST"])
 @login_required
@@ -146,13 +187,12 @@ def reauth():
 @login_required
 def logout():
     logout_user()
-    flash("Logged out.")
     return redirect(url_for("index"))
 
-@app.route("/")
-@app.route("/index")
+@app.route("/", methods=["GET", "POST"])
+@app.route("/index", methods=["GET", "POST"])
 def index():
-    app.logger.debug("Main page entry")
+    app.logger.info("Main page entry")
     return render_template('calc.html'), 200
 
 @app.route("/<filepath>")
@@ -230,6 +270,7 @@ def forbidden_request(error):
 ###
 # Api
 ###
+#retrieve token from html, call verify token, if success do it
 class listAll(Resource):
     def get(self):
         _times = db.brevetsdb.find().sort( "dist", 1)
