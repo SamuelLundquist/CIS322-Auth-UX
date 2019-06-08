@@ -86,7 +86,7 @@ def is_safe_url(target):
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "shhhhh it is a secret"
 api = Api(app)
-client = MongoClient("172.21.0.2", 27017)
+client = MongoClient("172.18.0.2", 27017)
 db = client.brevetsdb
 dbu = client.usersdb
 indexVal = 0
@@ -102,12 +102,12 @@ def load_user(name):
     u = dbu.usersdb.find_one({"name": name})
     if not u:
         return None
-    return User(u['name'], u['id'])
+    return User(u["name"], u["id"])
 
 ###
 # Pages
 ###
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/api/token', methods=['GET', 'POST'])
 def login():
     form = LoginForm()
     if request.method == 'POST' and form.validate_on_submit():
@@ -121,31 +121,20 @@ def login():
         times = [time for time in _users]
         for time in times:
             flash(time)
-        nUser = User(user["name"], user["id"])
-        flash(nUser)
-        ###
-        app.logger.info(nUser.is_authenticated)
-        verify_password(form.password.data, user['hash'])
 
         if user and verify_password(form.password.data, user['hash']):
-            newUser = User(user["name"], user["id"])
-            if login_user(newUser):
-                app.logger.info(newUser.name + "VERIFY")
-                next = request.args.get('next')
-                app.logger.info(url_for("index"))
-                app.logger.info(next)
-                if not is_safe_url(next):
-                    return flask.abort(400)
-                app.logger.info("IS SAFE VERIFIED")
-                return redirect(request.args.get("next") or url_for("index"))
-            else:
-                flash("Sorry, but you could not log in.")
+            newUser = User(user['name'], user['id'])
+            duration = 200
+            if remember:
+                duration = 2000
+            token = generate_auth_token(duration)
+            return jsonify(token = token.decode(), time = duration)
         else:
             flash(u"Invalid username or password.")
 
     return render_template('login.html',  title='Sign In', form=form)
 
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/api/register', methods=['GET', 'POST'])
 def register():
     dbu.usersdb.remove({})
     form = RegisterForm()
@@ -160,12 +149,13 @@ def register():
                 indexVal += 1
                 p = hash_password(passw)
                 user = {
-                    "id": indexVal,
-                    "name": username,
-                    "hash": p
+                    'id': indexVal,
+                    'name': username,
+                    'hash': p
                 }
-                dbu.usersdb.insert(user)
-                return redirect(url_for("index"))
+                user_id = str(dbu.usersdb.insert(user))
+                return jsonify({'_id': user_id, 'name': username})
+                
             else:
                 flash(u"Passwords do not match.")
         else:

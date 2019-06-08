@@ -40,7 +40,6 @@
   -- action.  (This is only on request/response transactions that
   -- result in regenerating the page, not on every xmlhttp request.)
   -->
-
 {% if current_user.is_authenticated %}
 <div id='user' style="background-color:white; color:black; width:40%">
     <p>Logged in as: {{ current_user.name }} <a href="{{ url_for('logout') }}">Log Out</a></p>
