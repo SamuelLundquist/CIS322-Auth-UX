@@ -9,6 +9,18 @@
 
 	<body>
 		<div id=title>Brevet Times</div>
+        <div id='navbar'>
+            <button class='apiButton' onclick="location.href='/index'">Home</button>
+            <button class='apiButton' onclick="location.href='/listAll'">All Times</button>
+            <button class='apiButton' onclick="location.href='/listAll/json'">All Times Json</button>
+            <button class='apiButton' onclick="location.href='/listAll/csv'">All Times Csv</button>
+            <button class='apiButton' onclick="location.href='/listOpenOnly'">Open Only Times</button>
+            <button class='apiButton' onclick="location.href='/listOpenOnly/json'">Open Only Times Json</button>
+            <button class='apiButton' onclick="location.href='/listOpenOnly/csv'">Open Only Times Csv</button>
+            <button class='apiButton' onclick="location.href='/listCloseOnly'">Close Only Times</button>
+            <button class='apiButton' onclick="location.href='/listCloseOnly/json'">Close Only Times Json</button>
+            <button class='apiButton' onclick="location.href='/listCloseOnly/csv'">Close Only Times Csv</button>
+        </div>
 		<div id='times'>
 			{% for time in times %}
 			<div class='time'>

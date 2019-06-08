@@ -39,23 +39,16 @@ td:active
 
 .brevButton
 {
-	width:35%;
+	width:25%;
 	height:40px;
-	padding-right: 20px;
-	padding-left: 20px;
+	margin-right: 3%;
+	margin-left: 3%;
 }
 
 .brevButton:active
 {
 	border-style: none;
 	border-color: rgb(175, 191, 216);
-}
-
-#divider
-{
-	width: 40px;
-	height: auto;
-	display: inline-block;
 }
 
 #user

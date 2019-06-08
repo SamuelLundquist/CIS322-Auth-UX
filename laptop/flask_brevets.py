@@ -86,7 +86,7 @@ def is_safe_url(target):
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "shhhhh it is a secret"
 api = Api(app)
-client = MongoClient("172.18.0.2", 27017)
+client = MongoClient("172.21.0.2", 27017)
 db = client.brevetsdb
 dbu = client.usersdb
 indexVal = 0
@@ -155,7 +155,7 @@ def register():
                 }
                 user_id = str(dbu.usersdb.insert(user))
                 return jsonify({'_id': user_id, 'name': username})
-                
+
             else:
                 flash(u"Passwords do not match.")
         else:
@@ -195,14 +195,16 @@ def found(filepath):
         return render_template('404.html'), 404
 
 @app.route("/display")
-@login_required
 def display():
     app.logger.debug("Display page entry")
     _times = db.brevetsdb.find().sort( "dist", 1)
     times = [time for time in _times]
-    db.brevetsdb.remove({})
     return render_template('display.html', times=times), 200
 
+@app.route("/clear")
+def clear():
+    db.brevetsdb.remove({})
+    return render_template('calc.html'), 200
 ###
 # AJAX request handlers
 ###

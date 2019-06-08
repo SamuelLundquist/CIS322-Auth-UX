@@ -50,16 +50,6 @@
 </div>
 {% endif %}
 
-{% with messages = get_flashed_messages() %}
-  {% if messages %}
-    <ul class=flashes>
-    {% for message in messages %}3
-      <li>{{ message }}</li>
-    {% endfor %}
-    </ul>
-  {% endif %}
-{% endwith %}
-
 <!-- Design on bootstrap grid -->
 <form role="form">
 <div class="row">
@@ -120,8 +110,8 @@
 
 <div id='buttons'>
   <button class='brevButton' id='submit' onclick="submit()">Submit</button>
-  <div id="divider"></div>
   <button class='brevButton' id='display' onclick="location.href='/display'">Display</button>
+  <button class='brevButton' id='clear' onclick="location.href='/clear'">Clear</button>
 </div>
 
 <script type="text/javascript">
