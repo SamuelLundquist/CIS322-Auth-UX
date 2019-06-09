@@ -5,6 +5,7 @@ Replacement for RUSA ACP brevet time calculator
 
 """
 from flask_wtf import FlaskForm
+from flask_httpauth import HTTPTokenAuth
 from wtforms import StringField, PasswordField, BooleanField, SubmitField
 from wtforms.validators import DataRequired
 from urllib.parse import urlparse, urljoin
@@ -54,25 +55,21 @@ def hash_password(password):
     return pwd_context.encrypt(password)
 
 def verify_password(password, hashVal):
-    app.logger.info(password)
-    app.logger.info(hashVal)
     return pwd_context.verify(password, hashVal)
 
-def generate_auth_token(expiration=600):
-   # s = Serializer(app.config['SECRET_KEY'], expires_in=expiration)
-   s = Serializer('test1234@#$', expires_in=expiration)
-   # pass index of user
-   return s.dumps({'id': 1})
+def generate_auth_token(user_id, expiration=600):
+   s = Serializer(app.config['SECRET_KEY'], expires_in=expiration)
+   return s.dumps({'id': user_id})
 
 def verify_auth_token(token):
-    s = Serializer('test1234@#$')
+    s = Serializer(app.config['SECRET_KEY'])
     try:
         data = s.loads(token)
     except SignatureExpired:
         return None    # valid token, but expired
     except BadSignature:
         return None    # invalid token
-    return "Success"
+    return data['id']
 
 def is_safe_url(target):
     ref_url = urlparse(request.host_url)
@@ -86,23 +83,24 @@ def is_safe_url(target):
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "shhhhh it is a secret"
 api = Api(app)
-client = MongoClient("172.21.0.2", 27017)
+client = MongoClient("172.18.0.2", 27017)
 db = client.brevetsdb
 dbu = client.usersdb
+auth = HTTPTokenAuth()
 indexVal = 0
 
 login_manager = LoginManager()
 login_manager.setup_app(app)
 login_manager.login_view = "login"
 login_manager.login_message = u"Please log in to access this page."
-login_manager.refresh_view = "reauth"
+#login_manager.refresh_view = "reauth"
 
 @login_manager.user_loader
 def load_user(name):
-    u = dbu.usersdb.find_one({"name": name})
+    u = dbu.usersdb.find_one({'name': name})
     if not u:
         return None
-    return User(u["name"], u["id"])
+    return User(u['name'], u['id'])
 
 ###
 # Pages
@@ -116,19 +114,18 @@ def login():
         remember = form.remember_me.data
         user = dbu.usersdb.find_one({"name": username})
 
-        ### Test Print Statement ###
-        _users = dbu.usersdb.find()
-        times = [time for time in _users]
-        for time in times:
-            flash(time)
-
         if user and verify_password(form.password.data, user['hash']):
+            next = request.args.get('next')
+            if not is_safe_url(next):
+                return abort(400)
             newUser = User(user['name'], user['id'])
-            duration = 200
-            if remember:
-                duration = 2000
-            token = generate_auth_token(duration)
-            return jsonify(token = token.decode(), time = duration)
+            tokn = generate_auth_token(user['id'])
+            #app.logger.info(current_user.name)
+            login_user(newUser)
+            app.logger.info(current_user.name)
+            app.logger.info("LOGGED IN BOIIII")
+
+            return jsonify({'token': tokn.decode(), 'duration': 600})
         else:
             flash(u"Invalid username or password.")
 
@@ -136,7 +133,6 @@ def login():
 
 @app.route('/api/register', methods=['GET', 'POST'])
 def register():
-    dbu.usersdb.remove({})
     form = RegisterForm()
     if form.validate_on_submit():
         username = form.username.data
@@ -155,6 +151,7 @@ def register():
                 }
                 user_id = str(dbu.usersdb.insert(user))
                 return jsonify({'_id': user_id, 'name': username})
+                #return redirect(url_for('index'))
 
             else:
                 flash(u"Passwords do not match.")
@@ -185,16 +182,8 @@ def index():
     app.logger.info("Main page entry")
     return render_template('calc.html'), 200
 
-@app.route("/<filepath>")
-def found(filepath):
-    if ((".." in filepath) or ("//" in filepath) or ("~" in filepath)):
-        return render_template('403.html'), 403
-    if os.path.isfile("templates/" + filepath):
-        return render_template(filepath), 200
-    else:
-        return render_template('404.html'), 404
-
 @app.route("/display")
+@login_required
 def display():
     app.logger.debug("Display page entry")
     _times = db.brevetsdb.find().sort( "dist", 1)
@@ -274,6 +263,7 @@ class listAll(Resource):
         return { 'Times' : time_array}
 
 class listAllj(Resource):
+    @auth.login_required
     def get(self):
         _times = db.brevetsdb.find().sort( "dist", 1)
         times = [time for time in _times]
@@ -284,6 +274,7 @@ class listAllj(Resource):
         return { 'Times' : time_array}
 
 class listAllc(Resource):
+    @auth.login_required
     def get(self):
         _times = db.brevetsdb.find().sort( "dist", 1)
         times = [time for time in _times]
@@ -294,6 +285,7 @@ class listAllc(Resource):
         return all
 
 class listOpenOnly(Resource):
+    @auth.login_required
     def get(self):
         _times = db.brevetsdb.find().sort( "dist", 1)
         times = [time for time in _times]
@@ -303,6 +295,7 @@ class listOpenOnly(Resource):
         return { 'openTime' : open_time_array}
 
 class listOpenOnlyj(Resource):
+    @auth.login_required
     def get(self):
         topp = request.args.get("top")
         if topp == None:
@@ -315,6 +308,7 @@ class listOpenOnlyj(Resource):
         return { 'openTime' : open_time_array}
 
 class listOpenOnlyc(Resource):
+    @auth.login_required
     def get(self):
         topp = request.args.get("top")
         if topp == None:
@@ -328,6 +322,7 @@ class listOpenOnlyc(Resource):
         return opentimes
 
 class listCloseOnly(Resource):
+    @auth.login_required
     def get(self):
         _times = db.brevetsdb.find().sort( "dist", 1)
         times = [time for time in _times]
@@ -337,6 +332,7 @@ class listCloseOnly(Resource):
         return { 'closeTime' : close_time_array}
 
 class listCloseOnlyj(Resource):
+    @auth.login_required
     def get(self):
         topp = request.args.get("top")
         if topp == None:
@@ -349,6 +345,7 @@ class listCloseOnlyj(Resource):
         return { 'closeTime' : close_time_array}
 
 class listCloseOnlyc(Resource):
+    @auth.login_required
     def get(self):
         topp = request.args.get("top")
         if topp == None:
