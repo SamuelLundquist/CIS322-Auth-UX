@@ -90,10 +90,9 @@ auth = HTTPTokenAuth()
 indexVal = 0
 
 login_manager = LoginManager()
-login_manager.setup_app(app)
+login_manager.init_app(app)
 login_manager.login_view = "login"
 login_manager.login_message = u"Please log in to access this page."
-#login_manager.refresh_view = "reauth"
 
 @login_manager.user_loader
 def load_user(name):
@@ -120,8 +119,7 @@ def login():
                 return abort(400)
             newUser = User(user['name'], user['id'])
             tokn = generate_auth_token(user['id'])
-            #app.logger.info(current_user.name)
-            login_user(newUser)
+            login_user(newUser, remember=True)
             app.logger.info(current_user.name)
             app.logger.info("LOGGED IN BOIIII")
 
@@ -151,7 +149,6 @@ def register():
                 }
                 user_id = str(dbu.usersdb.insert(user))
                 return jsonify({'_id': user_id, 'name': username})
-                #return redirect(url_for('index'))
 
             else:
                 flash(u"Passwords do not match.")
